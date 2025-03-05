@@ -1,1 +1,131 @@
+name: Validate Source of Truth CSV
 
+on:
+  pull_request:
+    branches: [ main ] # Or your main branch name
+
+jobs:
+  validate_csv:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9' # Or your preferred version
+
+    - name: Install required libraries
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas  # pandas is great for CSV manipulation
+
+    - name: Validate CSV contents
+      run: |
+        import pandas as pd
+        import sys
+
+        def validate_ipv4_cidr(cidr):
+            parts = cidr.split('/')
+            if len(parts) != 2:
+                return False
+            ip_parts = parts[0].split('.')
+            if len(ip_parts) != 4:
+                return False
+            try:
+                prefix = int(parts[1])
+                if prefix < 0 or prefix > 32:
+                    return False
+                for part in ip_parts:
+                    octet = int(part)
+                    if octet < 0 or octet > 255:
+                        return False
+                return True
+            except ValueError:
+                return False
+
+        def validate_ipv4_address_pool(pool):
+            ranges = pool.split(',')
+            for r in ranges:
+                ips = r.split('-')
+                if len(ips) != 2:
+                    return False
+                ip_parts1 = ips[0].split('.')
+                ip_parts2 = ips[1].split('.')
+                if len(ip_parts1) != 4 or len(ip_parts2) != 4:
+                  return False
+                try:
+                  for i in range(4):
+                    octet1 = int(ip_parts1[i])
+                    octet2 = int(ip_parts2[i])
+                    if octet1 < 0 or octet1 > 255 or octet2 < 0 or octet2 > 255:
+                      return False
+                except ValueError:
+                    return False
+            return True
+
+
+        def validate_url(url):
+            return url.startswith("https://") # Add more robust URL validation if needed
+
+        def validate_data(df):
+            errors = []
+            for index, row in df.iterrows():
+                store_id = row['store_id'] # Get store_id for better error reporting
+
+                # Example validations (add more as needed)
+                if not isinstance(row['node_count'], int):
+                    errors.append(f"Error in store {store_id}: node_count must be an integer")
+                if not validate_ipv4_cidr(row['cluster_ipv4_cidr']):
+                    errors.append(f"Error in store {store_id}: Invalid cluster_ipv4_cidr format")
+                if not validate_ipv4_cidr(row['services_ipv4_cidr']):
+                    errors.append(f"Error in store {store_id}: Invalid services_ipv4_cidr format")
+                if not validate_ipv4_address_pool(row['external_load_balancer_ipv4_address_pools']):
+                    errors.append(f"Error in store {store_id}: Invalid external_load_balancer_ipv4_address_pools format")
+                if not validate_url(row['sync_repo']):
+                    errors.append(f"Error in store {store_id}: Invalid sync_repo URL format")
+
+            return errors
+
+        # Load the CSV file
+        csv_file = 'cluster-intent-registry.csv'  # Or your file path
+        try:
+            df = pd.read_csv(csv_file)
+        except FileNotFoundError:
+            print(f"Error: CSV file not found at {csv_file}")
+            sys.exit(1)
+        except pd.errors.EmptyDataError:
+            print(f"Error: CSV file is empty")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error reading CSV file: {e}")
+            sys.exit(1)
+
+        # Rename columns to handle potential inconsistencies
+        expected_columns = ["store_id", "zone_name", "machine_project_id", "fleet_project_id",
+                            "cluster_name", "location", "node_count", "cluster_ipv4_cidr",
+                            "services_ipv4_cidr", "external_load_balancer_ipv4_address_pools",
+                            "sync_repo", "sync_branch", "sync_dir", "secrets_project_id",
+                            "git_token_secrets_manager_name", "cluster_version",
+                            "maintenance_window_start", "maintenance_window_end",
+                            "maintenance_window_recurrence", "maintenance_exclusion_name_1",
+                            "maintenance_exclusion_start_1", "maintenance_exclusion_end_1",
+                            "subnet_vlans", "recreate_on_delete"]
+
+        if list(df.columns) != expected_columns:
+            print(f"Error: CSV header does not match expected format.  Expected: {expected_columns} Got: {list(df.columns)}")
+            sys.exit(1)
+
+
+        # Validate the data
+        errors = validate_data(df)
+
+        if errors:
+            print("CSV validation failed:")
+            for error in errors:
+                print(f"  - {error}")
+            sys.exit(1)  # Fail the workflow
+        else:
+            print("CSV validation successful!")
