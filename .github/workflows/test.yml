@@ -23,7 +23,7 @@ jobs:
           pip install pandas  # pandas is great for CSV manipulation
 
       - name: Validate CSV contents
-        run: |
+        run: python <<EOF
           import pandas as pd
           import sys
 
@@ -129,3 +129,4 @@ jobs:
               sys.exit(1)  # Fail the workflow
           else:
               print("CSV validation successful!")
+          EOF
