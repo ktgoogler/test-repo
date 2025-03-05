@@ -23,7 +23,8 @@ jobs:
           pip install pandas  # pandas is great for CSV manipulation
 
       - name: Validate CSV contents
-        run: python <<EOF
+        run: |
+          python <<EOF
           import pandas as pd
           import sys
 
