@@ -2,7 +2,7 @@ name: Validate Source of Truth CSV
 
 on:
   pull_request:
-    branches: [main] # Or your main branch name
+    branches: [main]  # Or your main branch name
 
 jobs:
   validate_csv:
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9" # Or your preferred version
+          python-version: "3.9"  # Or your preferred version
 
       - name: Install required libraries
         run: |
@@ -29,105 +29,258 @@ jobs:
           import sys
 
           def validate_ipv4_cidr(cidr):
-              parts = cidr.split('/')
-              if len(parts) != 2:
+            parts = cidr.split("/")
+            if len(parts) != 2:
+              return False
+            ip_parts = parts[0].split(".")
+            if len(ip_parts) != 4:
+              return False
+            try:
+              prefix = int(parts[1])
+              if prefix < 0 or prefix > 32:
+                return False
+              for part in ip_parts:
+                octet = int(part)
+                if octet < 0 or octet > 255:
                   return False
-              ip_parts = parts[0].split('.')
-              if len(ip_parts) != 4:
-                  return False
-              try:
-                  prefix = int(parts[1])
-                  if prefix < 0 or prefix > 32:
-                      return False
-                  for part in ip_parts:
-                      octet = int(part)
-                      if octet < 0 or octet > 255:
-                          return False
-                  return True
-              except ValueError:
-                  return False
+              return True
+            except ValueError:
+              return False
 
           def validate_ipv4_address_pool(pool):
-              ranges = pool.split(',')
-              for r in ranges:
-                  ips = r.split('-')
-                  if len(ips) != 2:
-                      return False
-                  ip_parts1 = ips[0].split('.')
-                  ip_parts2 = ips[1].split('.')
-                  if len(ip_parts1) != 4 or len(ip_parts2) != 4:
+            ranges = pool.split(",")
+            for r in ranges:
+              ips = r.split("-")
+              if len(ips) != 2:
+                return False
+              ip_parts1 = ips[0].split(".")
+              ip_parts2 = ips[1].split(".")
+              if len(ip_parts1) != 4 or len(ip_parts2) != 4:
+                return False
+              try:
+                for i in range(4):
+                  octet1 = int(ip_parts1[i])
+                  octet2 = int(ip_parts2[i])
+                  if (
+                    octet1 < 0
+                    or octet1 > 255
+                    or octet2 < 0
+                    or octet2 > 255
+                  ):
                     return False
-                  try:
-                    for i in range(4):
-                      octet1 = int(ip_parts1[i])
-                      octet2 = int(ip_parts2[i])
-                      if octet1 < 0 or octet1 > 255 or octet2 < 0 or octet2 > 255:
-                        return False
-                  except ValueError:
-                      return False
-              return True
-
+              except ValueError:
+                return False
+            return True
 
           def validate_url(url):
-              return url.startswith("https://") # Add more robust URL validation if needed
+            return url.startswith(
+              "https://"
+            )  # Add more robust URL validation if needed
 
           def validate_data(df):
-              errors = []
-              for index, row in df.iterrows():
-                  store_id = row['store_id'] # Get store_id for better error reporting
+            errors = []
+            for index, row in df.iterrows():
+              store_id = row["store_id"]  # Get store_id for better error reporting
 
-                  # Example validations (add more as needed)
-                  if not isinstance(row['node_count'], int):
-                      errors.append(f"Error in store {store_id}: node_count must be an integer")
-                  if not validate_ipv4_cidr(row['cluster_ipv4_cidr']):
-                      errors.append(f"Error in store {store_id}: Invalid cluster_ipv4_cidr format")
-                  if not validate_ipv4_cidr(row['services_ipv4_cidr']):
-                      errors.append(f"Error in store {store_id}: Invalid services_ipv4_cidr format")
-                  if not validate_ipv4_address_pool(row['external_load_balancer_ipv4_address_pools']):
-                      errors.append(f"Error in store {store_id}: Invalid external_load_balancer_ipv4_address_pools format")
-                  if not validate_url(row['sync_repo']):
-                      errors.append(f"Error in store {store_id}: Invalid sync_repo URL format")
+              # Example validations (add more as needed)
+              if not isinstance(row["node_count"], int):
+                errors.append(
+                  f"Error in store {store_id}: node_count must be an integer"
+                )
+              if not validate_ipv4_cidr(row["cluster_ipv4_cidr"]):
+                errors.append(
+                  f"Error in store {store_id}: Invalid cluster_ipv4_cidr format"
+                )
+              if not validate_ipv4_cidr(row["services_ipv4_cidr"]):
+                errors.append(
+                  f"Error in store {store_id}: Invalid services_ipv4_cidr format"
+                )
+              if not validate_ipv4_address_pool(
+                row["external_load_balancer_ipv4_address_pools"]
+              ):
+                errors.append(
+                  f"Error in store {store_id}: Invalid external_load_balancer_ipv4_address_pools format"
+                )
+              if not validate_url(row["sync_repo"]):
+                errors.append(
+                  f"Error in store {store_id}: Invalid sync_repo URL format"
+                )
+            return errors
 
+          def validate_data_types(df):
+            expected_dtypes = {
+              "store_id": "object",  # strings
+              "zone_name": "object",
+              "machine_project_id": "object",
+              "fleet_project_id": "object",
+              "cluster_name": "object",
+              "location": "object",
+              "node_count": "int64",  # integer
+              "cluster_ipv4_cidr": "object",
+              "services_ipv4_cidr": "object",
+              "external_load_balancer_ipv4_address_pools": "object",
+              "sync_repo": "object",
+              "sync_branch": "object",
+              "sync_dir": "object",
+              "secrets_project_id": "object",
+              "git_token_secrets_manager_name": "object",
+              "cluster_version": "object",
+              "maintenance_window_start": "object",
+              "maintenance_window_end": "object",
+              "maintenance_window_recurrence": "object",
+              "maintenance_exclusion_name_1": "object",
+              "maintenance_exclusion_start_1": "object",
+              "maintenance_exclusion_end_1": "object",
+              "subnet_vlans": "object",
+              "recreate_on_delete": "bool",  # boolean
+            }
+
+            errors = []
+            for col, dtype in expected_dtypes.items():
+              if df[col].dtype != dtype:
+                errors.append(
+                  f"Column '{col}' has incorrect data type: expected '{dtype}', got '{df[col].dtype}'"
+                )
+            return errors
+
+          def validate_maintenance_window(start, end, recurrence, store_id):
+            errors = []
+            if (
+              pd.isna(start)
+              and pd.isna(end)
+              and pd.isna(recurrence)
+            ):
               return errors
 
-          # Load the CSV file
-          csv_file = 'cluster-intent-registry.csv'  # Or your file path
-          try:
-              df = pd.read_csv(csv_file)
-          except FileNotFoundError:
-              print(f"Error: CSV file not found at {csv_file}")
-              sys.exit(1)
-          except pd.errors.EmptyDataError:
-              print(f"Error: CSV file is empty")
-              sys.exit(1)
-          except Exception as e:
-              print(f"Error reading CSV file: {e}")
-              sys.exit(1)
+            if (
+              pd.isna(start)
+              or pd.isna(end)
+              or pd.isna(recurrence)
+            ):
+              errors.append(
+                f"Error in store {store_id}: maintenance_window_start, maintenance_window_end, and maintenance_window_recurrence must all be provided or all be empty"
+              )
+              return errors
 
-          # Rename columns to handle potential inconsistencies
-          expected_columns = ["store_id", "zone_name", "machine_project_id", "fleet_project_id",
-                              "cluster_name", "location", "node_count", "cluster_ipv4_cidr",
-                              "services_ipv4_cidr", "external_load_balancer_ipv4_address_pools",
-                              "sync_repo", "sync_branch", "sync_dir", "secrets_project_id",
-                              "git_token_secrets_manager_name", "cluster_version",
-                              "maintenance_window_start", "maintenance_window_end",
-                              "maintenance_window_recurrence", "maintenance_exclusion_name_1",
-                              "maintenance_exclusion_start_1", "maintenance_exclusion_end_1",
-                              "subnet_vlans", "recreate_on_delete"]
+            try:
+              pd.to_datetime(start, format="%H:%M")
+              pd.to_datetime(end, format="%H:%M")
+            except ValueError:
+              errors.append(
+                f"Error in store {store_id}: Invalid maintenance_window_start or maintenance_window_end format.  Expected HH:MM"
+              )
+
+            if not isinstance(recurrence, str):
+              errors.append(
+                f"Error in store {store_id}: Invalid maintenance_window_recurrence format.  Expected a string"
+              )
+            return errors
+
+          def validate_maintenance_exclusion(name, start, end, store_id):
+            errors = []
+            if pd.isna(name) and pd.isna(start) and pd.isna(end):
+              return errors
+
+            if pd.isna(name) or pd.isna(start) or pd.isna(end):
+              errors.append(
+                f"Error in store {store_id}: maintenance_exclusion_name_1, maintenance_exclusion_start_1, and maintenance_exclusion_end_1 must all be provided or all be empty"
+              )
+              return errors
+
+            try:
+              pd.to_datetime(start, format="%Y-%m-%d")
+              pd.to_datetime(end, format="%Y-%m-%d")
+            except ValueError:
+              errors.append(
+                f"Error in store {store_id}: Invalid maintenance_exclusion_start_1 or maintenance_exclusion_end_1 format.  Expected YYYY-MM-DD"
+              )
+
+            if not isinstance(name, str):
+              errors.append(
+                f"Error in store {store_id}: Invalid maintenance_exclusion_name_1 format.  Expected a string"
+              )
+            return errors
+
+          # Load the CSV file
+          csv_file = "cluster-intent-registry.csv"  # Or your file path
+          try:
+            df = pd.read_csv(csv_file)
+          except FileNotFoundError:
+            print(f"Error: CSV file not found at {{csv_file}}")
+            sys.exit(1)
+          except pd.errors.EmptyDataError:
+            print(f"Error: CSV file is empty")
+            sys.exit(1)
+          except Exception as e:
+            print(f"Error reading CSV file: {e}")
+            sys.exit(1)
+
+          # Validate the header
+          expected_columns = [
+            "store_id",
+            "zone_name",
+            "machine_project_id",
+            "fleet_project_id",
+            "cluster_name",
+            "location",
+            "node_count",
+            "cluster_ipv4_cidr",
+            "services_ipv4_cidr",
+            "external_load_balancer_ipv4_address_pools",
+            "sync_repo",
+            "sync_branch",
+            "sync_dir",
+            "secrets_project_id",
+            "git_token_secrets_manager_name",
+            "cluster_version",
+            "maintenance_window_start",
+            "maintenance_window_end",
+            "maintenance_window_recurrence",
+            "maintenance_exclusion_name_1",
+            "maintenance_exclusion_start_1",
+            "maintenance_exclusion_end_1",
+            "subnet_vlans",
+            "recreate_on_delete",
+          ]
 
           if list(df.columns) != expected_columns:
-              print(f"Error: CSV header does not match expected format.  Expected: {expected_columns} Got: {list(df.columns)}")
-              sys.exit(1)
-
+            print(
+              "Error: CSV header does not match expected format.  Expected:"
+              f" {{expected_columns}} Got: {{list(df.columns)}}"
+            )
+            sys.exit(1)
 
           # Validate the data
           errors = validate_data(df)
+          dtype_errors = validate_data_types(df)
+
+          # Validate maintenance window
+          for index, row in df.iterrows():
+            store_id = row["store_id"]
+            start = row["maintenance_window_start"]
+            end = row["maintenance_window_end"]
+            recurrence = row["maintenance_window_recurrence"]
+            errors.extend(
+              validate_maintenance_window(start, end, recurrence, store_id)
+            )
+
+            name = row["maintenance_exclusion_name_1"]
+            start = row["maintenance_exclusion_start_1"]
+            end = row["maintenance_exclusion_end_1"]
+            errors.extend(
+              validate_maintenance_exclusion(name, start, end, store_id)
+            )
 
           if errors:
-              print("CSV validation failed:")
-              for error in errors:
-                  print(f"  - {error}")
-              sys.exit(1)  # Fail the workflow
+            print("CSV validation failed:")
+            for error in errors:
+              print(f"  - {error}")
+            sys.exit(1)  # Fail the workflow
+          elif dtype_errors:
+            print("CSV data type validation failed:")
+            for error in dtype_errors:
+              print(f" - {error}")
+            sys.exit(1)
           else:
-              print("CSV validation successful!")
+            print("CSV validation successful!")
           EOF
