@@ -82,29 +82,172 @@ jobs:
             for index, row in df.iterrows():
               store_id = row["store_id"]  # Get store_id for better error reporting
 
-              # Example validations (add more as needed)
+              # Validate store_id
+              if not isinstance(row["store_id"], str):
+                errors.append(
+                  f"Error in store {store_id}: store_id must be a string"
+                )
+
+              # Validate zone_name
+              if not isinstance(row["zone_name"], str):
+                errors.append(
+                  f"Error in store {store_id}: zone_name must be a string"
+                )
+
+              # Validate machine_project_id
+              if not isinstance(row["machine_project_id"], str):
+                errors.append(
+                  f"Error in store {store_id}: machine_project_id must be a string"
+                )
+
+              # Validate fleet_project_id
+              if not isinstance(row["fleet_project_id"], str):
+                errors.append(
+                  f"Error in store {store_id}: fleet_project_id must be a string"
+                )
+
+              # Validate cluster_name
+              if not isinstance(row["cluster_name"], str):
+                errors.append(
+                  f"Error in store {store_id}: cluster_name must be a string"
+                )
+
+              # Validate location
+              if not isinstance(row["location"], str):
+                errors.append(
+                  f"Error in store {store_id}: location must be a string"
+                )
+
+              # Validate node_count
               if not isinstance(row["node_count"], int):
                 errors.append(
                   f"Error in store {store_id}: node_count must be an integer"
                 )
+
+              # Validate cluster_ipv4_cidr
               if not validate_ipv4_cidr(row["cluster_ipv4_cidr"]):
                 errors.append(
                   f"Error in store {store_id}: Invalid cluster_ipv4_cidr format"
                 )
+
+              # Validate services_ipv4_cidr
               if not validate_ipv4_cidr(row["services_ipv4_cidr"]):
                 errors.append(
                   f"Error in store {store_id}: Invalid services_ipv4_cidr format"
                 )
+
+              # Validate external_load_balancer_ipv4_address_pools
               if not validate_ipv4_address_pool(
                 row["external_load_balancer_ipv4_address_pools"]
               ):
                 errors.append(
                   f"Error in store {store_id}: Invalid external_load_balancer_ipv4_address_pools format"
                 )
+
+              # Validate sync_repo
               if not validate_url(row["sync_repo"]):
                 errors.append(
                   f"Error in store {store_id}: Invalid sync_repo URL format"
                 )
+
+              # Validate sync_branch
+              if not isinstance(row["sync_branch"], str):
+                errors.append(
+                  f"Error in store {store_id}: sync_branch must be a string"
+                )
+
+              # Validate sync_dir
+              if not isinstance(row["sync_dir"], str):
+                errors.append(
+                  f"Error in store {store_id}: sync_dir must be a string"
+                )
+
+              # Validate secrets_project_id
+              if not isinstance(row["secrets_project_id"], str):
+                errors.append(
+                  f"Error in store {store_id}: secrets_project_id must be a string"
+                )
+
+              # Validate git_token_secrets_manager_name
+              if not isinstance(
+                row["git_token_secrets_manager_name"], str
+              ):
+                errors.append(
+                  f"Error in store {store_id}: git_token_secrets_manager_name must be a string"
+                )
+
+              # Validate cluster_version
+              if not isinstance(row["cluster_version"], str):
+                errors.append(
+                  f"Error in store {store_id}: cluster_version must be a string"
+                )
+
+              # Validate maintenance_window_start
+              if not (
+                isinstance(row["maintenance_window_start"], str)
+                or pd.isna(row["maintenance_window_start"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_window_start must be a string or null"
+                )
+
+              # Validate maintenance_window_end
+              if not (
+                isinstance(row["maintenance_window_end"], str)
+                or pd.isna(row["maintenance_window_end"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_window_end must be a string or null"
+                )
+
+              # Validate maintenance_window_recurrence
+              if not (
+                isinstance(row["maintenance_window_recurrence"], str)
+                or pd.isna(row["maintenance_window_recurrence"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_window_recurrence must be a string or null"
+                )
+
+              # Validate maintenance_exclusion_name_1
+              if not (
+                isinstance(row["maintenance_exclusion_name_1"], str)
+                or pd.isna(row["maintenance_exclusion_name_1"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_exclusion_name_1 must be a string or null"
+                )
+
+              # Validate maintenance_exclusion_start_1
+              if not (
+                isinstance(row["maintenance_exclusion_start_1"], str)
+                or pd.isna(row["maintenance_exclusion_start_1"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_exclusion_start_1 must be a string or null"
+                )
+
+              # Validate maintenance_exclusion_end_1
+              if not (
+                isinstance(row["maintenance_exclusion_end_1"], str)
+                or pd.isna(row["maintenance_exclusion_end_1"])
+              ):
+                errors.append(
+                  f"Error in store {store_id}: maintenance_exclusion_end_1 must be a string or null"
+                )
+
+              # Validate subnet_vlans
+              if not isinstance(row["subnet_vlans"], str):
+                errors.append(
+                  f"Error in store {store_id}: subnet_vlans must be a string"
+                )
+
+              # Validate recreate_on_delete
+              if not isinstance(row["recreate_on_delete"], bool):
+                errors.append(
+                  f"Error in store {store_id}: recreate_on_delete must be a boolean"
+                )
+
             return errors
 
           def validate_data_types(df):
@@ -192,7 +335,7 @@ jobs:
               pd.to_datetime(end, format="%Y-%m-%d")
             except ValueError:
               errors.append(
-                f"Error in store {store_id}: Invalid maintenance_exclusion_start_1 or maintenance_exclusion_end_1 format.  Expected YYYY-MM-DD"
+                f"Error in store {store_id}: Invalid maintenance_exclusion_start_1 or maintenance_exclusion_end_1 format.  Expected %Y-%m-%d"
               )
 
             if not isinstance(name, str):
