@@ -20,13 +20,14 @@ jobs:
       - name: Install required libraries
         run: |
           python -m pip install --upgrade pip
-          pip install pandas  # pandas is great for CSV manipulation
+          pip install pandas pyyaml  # pandas is great for CSV manipulation
 
       - name: Validate CSV contents
         run: |
           python <<EOF
           import pandas as pd
           import sys
+          import yaml
 
           def validate_ipv4_cidr(cidr):
             parts = cidr.split("/")
@@ -344,6 +345,36 @@ jobs:
               )
             return errors
 
+          def validate_with_config(df, config):
+            errors = []
+            for index, row in df.iterrows():
+              store_id = row["store_id"]
+              for column, rules in config.items():
+                value = row[column]
+                if "type" in rules:
+                  expected_type = rules["type"]
+                  if expected_type == "integer" and not isinstance(value, int):
+                    errors.append(
+                      f"Error in store {store_id}, column {column}: Expected integer, got {type(value).__name__}"
+                    )
+                  elif expected_type == "string" and not isinstance(value, str):
+                    errors.append(
+                      f"Error in store {store_id}, column {column}: Expected string, got {type(value).__name__}"
+                    )
+                  elif expected_type == "boolean" and not isinstance(
+                    value, bool
+                  ):
+                    errors.append(
+                      f"Error in store {store_id}, column {column}: Expected boolean, got {type(value).__name__}"
+                    )
+                if "allowed_values" in rules:
+                  allowed_values = rules["allowed_values"]
+                  if value not in allowed_values:
+                    errors.append(
+                      f"Error in store {store_id}, column {column}: Value '{value}' not in allowed values {allowed_values}"
+                    )
+            return errors
+
           # Load the CSV file
           csv_file = "cluster-intent-registry.csv"  # Or your file path
           try:
@@ -393,9 +424,38 @@ jobs:
             )
             sys.exit(1)
 
+          # Load validation configuration
+          validation_config = {
+              "store_id": {"type": "string"},
+              "zone_name": {"type": "string"},
+              "machine_project_id": {"type": "string"},
+              "fleet_project_id": {"type": "string"},
+              "cluster_name": {"type": "string"},
+              "location": {"type": "string", "allowed_values": ["us-central1", "us-west1", "europe-west1"]},
+              "node_count": {"type": "integer"},
+              "cluster_ipv4_cidr": {"type": "string"},
+              "services_ipv4_cidr": {"type": "string"},
+              "external_load_balancer_ipv4_address_pools": {"type": "string"},
+              "sync_repo": {"type": "string"},
+              "sync_branch": {"type": "string"},
+              "sync_dir": {"type": "string"},
+              "secrets_project_id": {"type": "string"},
+              "git_token_secrets_manager_name": {"type": "string"},
+              "cluster_version": {"type": "string"},
+              "maintenance_window_start": {"type": "string"},
+              "maintenance_window_end": {"type": "string"},
+              "maintenance_window_recurrence": {"type": "string"},
+              "maintenance_exclusion_name_1": {"type": "string"},
+              "maintenance_exclusion_start_1": {"type": "string"},
+              "maintenance_exclusion_end_1": {"type": "string"},
+              "subnet_vlans": {"type": "string"},
+              "recreate_on_delete": {"type": "boolean"},
+          }
+
           # Validate the data
           errors = validate_data(df)
           dtype_errors = validate_data_types(df)
+          config_errors = validate_with_config(df, validation_config)
 
           # Validate maintenance window
           for index, row in df.iterrows():
@@ -422,6 +482,11 @@ jobs:
           elif dtype_errors:
             print("CSV data type validation failed:")
             for error in dtype_errors:
+              print(f" - {error}")
+            sys.exit(1)
+          elif config_errors:
+            print("CSV configuration validation failed:")
+            for error in config_errors:
               print(f" - {error}")
             sys.exit(1)
           else:
