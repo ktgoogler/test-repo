@@ -20,11 +20,11 @@ jobs:
       - name: Install required libraries
         run: |
           python -m pip install --upgrade pip
-          pip install pandas pydantic  # Install pandas and pydantic
+          pip install pandas
+          pip install pydantic  # Install pandas and pydantic
 
       - name: Validate CSV contents
         run: |
-          python <<EOF
           import pandas as pd
           import sys
           from pydantic import BaseModel, ValidationError, validator, Field, StringConstraints
@@ -198,5 +198,4 @@ jobs:
                   print(f"  - {error}")
               sys.exit(1)  # Fail the workflow
           else:
-              print("CSV validation successful!")
-          EOF    
+              print("CSV validation successful!") 
