@@ -205,5 +205,6 @@ jobs:
               sys.exit(1)  # Fail the workflow
           else:
               print("CSV validation successful!") # Added success message
+          sys.exit(0) # Ensure a clean exit code
           EOF
           python validate_csv.py
