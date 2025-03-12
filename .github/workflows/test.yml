@@ -1,4 +1,4 @@
-name: Validate Source of Truth CSV
+name: Validate Source of Truth CSV workflow
 
 on:
   pull_request:
