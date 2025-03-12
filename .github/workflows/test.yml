@@ -24,7 +24,8 @@ jobs:
 
       - name: Validate CSV contents
         run: |
-          python <<EOF
+          set -x  # Echo commands to help debug
+          python <<'EOF'
           import pandas as pd
           import sys
           from pydantic import BaseModel, ValidationError, field_validator, Field, StringConstraints, conint
@@ -177,4 +178,11 @@ jobs:
           else:
               print("CSV validation successful!")
           EOF
-          )
+          exit_code=$?
+          echo "Script completed with exit code: $exit_code"
+          if [[ $exit_code -eq 0 ]]; then
+            echo "Validation Succeeded"
+          else
+            echo "Validation Failed"
+            exit 1
+          fi
