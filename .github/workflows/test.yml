@@ -24,65 +24,28 @@ jobs:
 
       - name: Validate CSV contents
         run: |
-          # Create a separate Python file
-          echo > validate_csv.py <<EOF
+          python <<EOF
           import pandas as pd
           import sys
           from pydantic import BaseModel, ValidationError, validator, Field, StringConstraints, conint
-          from typing import Optional, Set, List
+          from typing import Optional
           from ipaddress import IPv4Network, AddressValueError
-          import enum
-
-          # Helper Functions
-          def coerce_splt_commas_rtn_set_strs(value: str) -> Optional[Set[str]]:
-              """Helper: Splits comma-separated string, returns set of strings"""
-              if not value:
-                  return None
-              return {s.strip() for s in value.split(',')}
-
-          def coerce_empty_str_to_none(value: str) -> Optional[str]:
-              """Helper: Coerces empty string to None"""
-              if value == "":
-                  return None
-              return value
-
-          def unique(value: str) -> str:
-              return value
-
-          def validate_ipv4_address(ip: str, is_mandatory: bool = True) -> str:
-              if not ip and not is_mandatory:
-                  return ip
-              try:
-                  # Parse the CIDR notation using ip_network
-                  IPv4Network(ip, strict=False)
-              except (AddressValueError, ValueError) as e:
-                  raise ValueError(f"Invalid CIDR value: {ip}. Error: {e}")
-              return ip
-
-          # Define enums (if needed, based on allowed values)
-          # Example:
-          # class ZoneName(enum.StrEnum):
-          #     US_WEST1_EDGE_MTV51 = "us-west1-edge-mtv51"
-          #     US_WEST1_EDGE_MTV52 = "us-west1-edge-mtv52"
-          #     US_WEST1_EDGE_MTV53 = "us-west1-edge-mtv53"
-          #     US_WEST1_EDGE_MTV54 = "us-west1-edge-mtv54"
-
 
           class SourceOfTruthModel(BaseModel):
               """
               Source of Truth Model
               """
               store_id: str = Field(min_length=1, max_length=20)
-              zone_name: str = Field(min_length=1, max_length=50) #Could be an Enum
+              zone_name: str = Field(min_length=1, max_length=50)
               machine_project_id: str = Field(min_length=1, max_length=50)
               fleet_project_id: str = Field(min_length=1, max_length=50)
               cluster_name: str = Field(min_length=1, max_length=50)
               location: str = Field(min_length=1, max_length=50)
               node_count: conint(ge=0)
-              cluster_ipv4_cidr: str = pydantic.AfterValidator(validate_ipv4_address)
-              services_ipv4_cidr: str = pydantic.AfterValidator(validate_ipv4_address)
+              cluster_ipv4_cidr: str
+              services_ipv4_cidr: str
               external_load_balancer_ipv4_address_pools: str
-              sync_repo: str = pydantic.StringConstraints(min_length=1, max_length=200) #Basic
+              sync_repo: str = Field(min_length=1, max_length=200)
               sync_branch: str = Field(min_length=1, max_length=50)
               sync_dir: str = Field(min_length=1, max_length=100)
               secrets_project_id: str = Field(min_length=1, max_length=50)
@@ -91,43 +54,37 @@ jobs:
               maintenance_window_start: Optional[str] = Field(default=None)
               maintenance_window_end: Optional[str] = Field(default=None)
               maintenance_window_recurrence: Optional[str] = Field(default=None, min_length=1, max_length=50)
-              maintenance_exclusion_name_1: Optional[str]  = Field(default=None, min_length=1, max_length=50)
+              maintenance_exclusion_name_1: Optional[str] = Field(default=None, min_length=1, max_length=50)
               maintenance_exclusion_start_1: Optional[str] = Field(default=None)
               maintenance_exclusion_end_1: Optional[str] = Field(default=None)
               subnet_vlans: str = Field(min_length=1)
               recreate_on_delete: bool
 
-              _validate_url = validator('sync_repo', allow_reuse=True)(validate_url)
-              _validate_maintenance_window_time = validator('maintenance_window_start', 'maintenance_window_end', allow_reuse=True)(validate_maintenance_window_time)
-              _validate_maintenance_exclusion_date = validator('maintenance_exclusion_start_1', 'maintenance_exclusion_end_1', allow_reuse=True)(validate_maintenance_exclusion_date)
-              _validate_ipv4_address_pool = validator('external_load_balancer_ipv4_address_pools', allow_reuse=True)(validate_ipv4_address_pool)
+              @validator("cluster_ipv4_cidr", "services_ipv4_cidr")
+              def validate_ipv4_cidr(cls, cidr):
+                  try:
+                      IPv4Network(cidr, strict=False)
+                  except (AddressValueError, ValueError) as e:
+                      raise ValueError(f"Invalid IPv4 CIDR: {cidr}") from e
+                  return cidr
 
-              @validator('external_load_balancer_ipv4_address_pools')
-              def validate_ipv4_address_pool(cls, pool):
+              @validator("external_load_balancer_ipv4_address_pools")
+              def validate_ipv4_address_pools(cls, pool):
                   ranges = pool.split(",")
                   for r in ranges:
                       ips = r.split("-")
                       if len(ips) != 2:
                           raise ValueError(f"Invalid IP address pool format: {pool}")
-                      ip_parts1 = ips[0].split(".")
-                      ip_parts2 = ips[1].split(".")
-                      if len(ip_parts1) != 4 or len(ip_parts2) != 4:
-                          raise ValueError(f"Invalid IP address pool format: {pool}")
                       try:
-                          for i in range(4):
-                              octet1 = int(ip_parts1[i])
-                              octet2 = int(ip_parts2[i])
-                              if (
-                                  octet1 < 0
-                                  or octet1 > 255
-                                  or octet2 < 0
-                                  or octet2 > 255
-                              ):
-                                  raise ValueError(f"Invalid IP address in pool: {pool}")
-                      except ValueError:
-                          raise ValueError(f"Invalid IP address pool format: {pool}")
+                          ip_start = ips[0]
+                          ip_end = ips[1]
+                          IPv4Network(ip_start)
+                          IPv4Network(ip_end)
+                      except (AddressValueError, ValueError) as e:
+                          raise ValueError(f"Invalid IP address in pool: {pool}") from e
                   return pool
-              @validator('sync_repo')
+
+              @validator("sync_repo")
               def validate_url(cls, url):
                   if not url.startswith("https://"):  # Basic URL validation
                       raise ValueError(f"Invalid URL format: {url}")
@@ -153,20 +110,25 @@ jobs:
                       raise ValueError(f"Invalid date format. Expected %Y-%m-%d: {value}")
                   return value
 
-
+              @validator("location")
+              def validate_location(cls, value):
+                  allowed_locations = ["us-central1", "us-west1", "europe-west1"]
+                  if value not in allowed_locations:
+                      raise ValueError(f"Invalid location: {value}. Allowed values are {allowed_locations}")
+                  return value
 
           def validate_data(df):
               errors = []
               for index, row in df.iterrows():
                   try:
-                      # Convert row to a dictionary, handle NaNs, and create a SourceOfTruthModel object
+                      # Convert row to a dictionary, handling NaNs
                       row_dict = {k: None if pd.isna(v) else v for k, v in row.to_dict().items()}
                       SourceOfTruthModel(**row_dict)  # Validate the row
                   except ValidationError as e:
                       # Capture the error and the row index.
-                      errors.append(f"Row {index + 2}: {e}")
+                      errors.append(f"Error in row {index + 2}: {e}")
                   except ValueError as e:
-                      errors.append(f"Row {index + 2}: {e}")
+                      errors.append(f"Error in row {index + 2}: {e}")
               return errors
 
           # Load the CSV file
