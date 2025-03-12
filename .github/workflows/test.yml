@@ -28,7 +28,7 @@ jobs:
           python <<'EOF'
           import pandas as pd
           import sys
-          from pydantic import BaseModel, ValidationError, field_validator, Field, StringConstraints, conint
+          from pydantic import BaseModel, ValidationError, field_validator, Field, StringConstraints, conint, validator
           from typing import Optional
           from ipaddress import IPv4Network, AddressValueError
 
@@ -160,6 +160,7 @@ jobs:
               "cluster_version","maintenance_window_start","maintenance_window_end","maintenance_window_recurrence",
               "maintenance_exclusion_name_1","maintenance_exclusion_start_1","maintenance_exclusion_end_1","subnet_vlans","recreate_on_delete"
           ]
+
           if list(df.columns) != expected_columns:
               print(
                   "Error: CSV header does not match expected format.  Expected:"
@@ -177,7 +178,6 @@ jobs:
               sys.exit(1)  # Fail the workflow
           else:
               print("CSV validation successful!")
-          EOF
           exit_code=$?
           echo "Script completed with exit code: $exit_code"
           if [[ $exit_code -eq 0 ]]; then
@@ -186,3 +186,4 @@ jobs:
             echo "Validation Failed"
             exit 1
           fi
+
