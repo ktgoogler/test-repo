@@ -163,7 +163,10 @@ jobs:
                       row_dict = {k: None if pd.isna(v) else v for k, v in row.to_dict().items()}
                       SourceOfTruthModel(**row_dict)  # Validate the row
                   except ValidationError as e:
-                      errors.append(f"Error in row {index + 2}: {e}")  # +2 for header and 0-based index
+                      # Capture the error and the row index.
+                      errors.append(f"Row {index + 2}: {e}")
+                  except ValueError as e:
+                      errors.append(f"Row {index + 2}: {e}")
               return errors
 
           # Load the CSV file
@@ -204,10 +207,10 @@ jobs:
                   print(f"  - {error}")
               sys.exit(1)  # Fail the workflow
           else:
-              print("CSV validation successful!") # Added success message
+              print("CSV validation successful!")
           EOF
-          output=$(python validate_csv.py) # Capture the output
-          echo "$output" # Print the output
+          output=$(python validate_csv.py)
+          echo "$output"
           if [[ $? -eq 0 ]]; then
             echo "Validation Succeeded"
           else
