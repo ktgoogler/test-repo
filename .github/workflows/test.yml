@@ -28,8 +28,8 @@ jobs:
           echo > validate_csv.py <<EOF
           import pandas as pd
           import sys
-          from pydantic import BaseModel, ValidationError, validator, Field, StringConstraints
-          from typing import Optional, Set
+          from pydantic import BaseModel, ValidationError, validator, Field, StringConstraints, conint
+          from typing import Optional, Set, List
           from ipaddress import IPv4Network, AddressValueError
           import enum
 
@@ -78,7 +78,7 @@ jobs:
               fleet_project_id: str = Field(min_length=1, max_length=50)
               cluster_name: str = Field(min_length=1, max_length=50)
               location: str = Field(min_length=1, max_length=50)
-              node_count: int = Field(ge=0)
+              node_count: conint(ge=0)
               cluster_ipv4_cidr: str = pydantic.AfterValidator(validate_ipv4_address)
               services_ipv4_cidr: str = pydantic.AfterValidator(validate_ipv4_address)
               external_load_balancer_ipv4_address_pools: str
@@ -96,6 +96,11 @@ jobs:
               maintenance_exclusion_end_1: Optional[str] = Field(default=None)
               subnet_vlans: str = Field(min_length=1)
               recreate_on_delete: bool
+
+              _validate_url = validator('sync_repo', allow_reuse=True)(validate_url)
+              _validate_maintenance_window_time = validator('maintenance_window_start', 'maintenance_window_end', allow_reuse=True)(validate_maintenance_window_time)
+              _validate_maintenance_exclusion_date = validator('maintenance_exclusion_start_1', 'maintenance_exclusion_end_1', allow_reuse=True)(validate_maintenance_exclusion_date)
+              _validate_ipv4_address_pool = validator('external_load_balancer_ipv4_address_pools', allow_reuse=True)(validate_ipv4_address_pool)
 
               @validator('external_load_balancer_ipv4_address_pools')
               def validate_ipv4_address_pool(cls, pool):
