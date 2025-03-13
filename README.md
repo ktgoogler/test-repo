@@ -36,8 +36,8 @@ To test the validation script locally, you can run the following command:
 ```bash
 python validate_csv.py
 
-Ensure that you have the required dependencies (pandas and pydantic) installed in your Python environment.  You should also have a cluster-intent-registry.csv file in the same directory as the script, or update the csv_file variable in the script.Workflow File (.github/workflows/validate_sot.yml)
-The workflow definition is located in the .github/workflows/validate_sot.yml file.
+Ensure that you have the required dependencies (pandas and pydantic) installed in your Python environment.  You should also have a cluster-intent-registry.csv file in the same directory as the script, or update the csv_file variable in the script.Workflow File (.github/workflows/validate-sot.yml)
+The workflow definition is located in the .github/workflows/validate-sot.yml file.
 This file defines the workflow's trigger, the jobs to be executed, and the steps within each job.
 
 **Contributing**
